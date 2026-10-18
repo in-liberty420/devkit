@@ -4,6 +4,8 @@ description = "SeaORM on SQLite now, Postgres later: connection options, test da
 edition.workspace = true
 version.workspace = true
 publish.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [features]
 # The Postgres driver. Builds stay SQLite-only until an app enables this.
