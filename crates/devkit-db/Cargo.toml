@@ -1,0 +1,25 @@
+[package]
+name = "devkit-db"
+description = "SeaORM on SQLite now, Postgres later: connection options, test databases on either backend, and a SQLite-to-Postgres data copy."
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[features]
+# The Postgres driver. Builds stay SQLite-only until an app enables this.
+postgres = ["sea-orm/sqlx-postgres", "sea-orm-migration/sqlx-postgres"]
+# `devkit_db::test_support`: per-test databases on the backend the run selects.
+test-support = []
+
+[dependencies]
+sea-orm = { workspace = true }
+sea-orm-migration = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+ulid = { workspace = true }
+
+[dev-dependencies]
+devkit-db = { path = ".", features = ["test-support"] }
+sea-orm = { workspace = true, features = ["macros", "with-chrono"] }
+tokio = { workspace = true }
+chrono = { workspace = true }

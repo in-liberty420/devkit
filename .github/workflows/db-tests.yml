@@ -1,0 +1,104 @@
+# Reusable: run a crate's database tests on SQLite and on a real Postgres.
+# From another repo (pin to a commit SHA; tags can be moved):
+#
+#   jobs:
+#     db:
+#       uses: in-liberty420/devkit/.github/workflows/db-tests.yml@<commit-sha> # v0.1.0
+#       with:
+#         cargo-args: -p app-db
+#       secrets:
+#         git-token: ${{ secrets.DEVKIT_READ_TOKEN }}  # only while devkit is private
+#
+# git-token, while devkit is private: a fine-grained personal access token,
+# read-only `Contents` on in-liberty420/devkit and nothing else, short expiry.
+# It is used only to fetch dependencies and removed before any of the
+# caller's code (build scripts, tests) runs; tests then run offline.
+#
+# The Postgres job adds `--features <postgres-features>` and sets
+# TEST_DB_BACKEND and TEST_DB_POSTGRES_URL for devkit_db::test_support. Each
+# test creates its own database on the disposable service.
+name: db-tests
+on:
+  workflow_call:
+    inputs:
+      cargo-args:
+        description: Arguments after `cargo test`, e.g. `-p app-db` or `--workspace`.
+        type: string
+        default: --workspace
+      postgres-features:
+        description: Feature list that turns on the Postgres driver.
+        type: string
+        default: postgres
+      toolchain:
+        description: Rust toolchain; empty means rust-toolchain.toml decides.
+        type: string
+        default: ""
+    secrets:
+      git-token:
+        description: Read-only token for devkit while it is private (see above).
+        required: false
+permissions:
+  contents: read
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+jobs:
+  test:
+    name: ${{ matrix.backend }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24 # 17.11
+        env:
+          POSTGRES_USER: dk
+          POSTGRES_PASSWORD: dk
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dk -d postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      # Inputs reach the scripts only as environment variables, never
+      # interpolated into the script text.
+      CARGO_ARGS: ${{ inputs.cargo-args }}
+      PG_FEATURES: ${{ inputs.postgres-features }}
+      TOOLCHAIN: ${{ inputs.toolchain }}
+      TEST_DB_BACKEND: ${{ matrix.backend }}
+      TEST_DB_POSTGRES_URL: postgres://dk:dk@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        if: inputs.toolchain != ''
+        run: |
+          [[ "$TOOLCHAIN" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "invalid toolchain: $TOOLCHAIN" >&2; exit 1; }
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+          rustup override set "$TOOLCHAIN"
+      - name: Fetch dependencies
+        env:
+          GIT_TOKEN: ${{ secrets.git-token }}
+        run: |
+          rewrite='url.https://x-access-token:'"$GIT_TOKEN"'@github.com/in-liberty420/devkit.insteadOf'
+          if [ -n "$GIT_TOKEN" ]; then
+            git config --global "$rewrite" https://github.com/in-liberty420/devkit
+            export CARGO_NET_GIT_FETCH_WITH_CLI=true
+          fi
+          status=0
+          cargo fetch --locked || status=$?
+          git config --global --remove-section "url.https://x-access-token:$GIT_TOKEN@github.com/in-liberty420/devkit" 2>/dev/null || true
+          exit "$status"
+      - name: Test
+        run: |
+          read -ra args <<< "$CARGO_ARGS"
+          if [ "$TEST_DB_BACKEND" = postgres ]; then
+            args+=(--features "$PG_FEATURES")
+          fi
+          cargo test --offline --locked "${args[@]}"
