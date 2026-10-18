@@ -39,12 +39,12 @@ project's `CLAUDE.md`.
 postgres = ["devkit-db/postgres"]
 
 [dependencies]
-devkit-db = { git = "https://github.com/in-liberty420/devkit", tag = "v0.1.0" } # Cargo.lock pins the commit
+devkit-db = { git = "https://github.com/in-liberty420/devkit", tag = "v0.1.1" } # Cargo.lock pins the commit
 sea-orm = { version = "2.0.4", default-features = false, features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros", "with-chrono"] }
 sea-orm-migration = { version = "2.0.4", default-features = false, features = ["sqlx-sqlite", "runtime-tokio-rustls"] }
 
 [dev-dependencies]
-devkit-db = { git = "https://github.com/in-liberty420/devkit", tag = "v0.1.0", features = ["test-support"] }
+devkit-db = { git = "https://github.com/in-liberty420/devkit", tag = "v0.1.1", features = ["test-support"] }
 ```
 
 Cargo.lock records the exact commit the tag pointed at, so a tag moved later
@@ -80,7 +80,7 @@ tunnel: never forward a shared or production server (`ssh -L`,
 `kubectl port-forward`, a cloud SQL proxy) to the port you test against.
 
 In CI, call the reusable workflow `.github/workflows/db-tests.yml`; its header
-shows how, including the read-only token it needs while devkit is private.
+shows how.
 
 ## Known differences
 

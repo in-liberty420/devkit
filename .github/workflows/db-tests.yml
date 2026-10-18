@@ -3,16 +3,11 @@
 #
 #   jobs:
 #     db:
-#       uses: in-liberty420/devkit/.github/workflows/db-tests.yml@<commit-sha> # v0.1.0
+#       uses: in-liberty420/devkit/.github/workflows/db-tests.yml@<commit-sha> # v0.1.1
 #       with:
 #         cargo-args: -p app-db
-#       secrets:
-#         git-token: ${{ secrets.DEVKIT_READ_TOKEN }}  # only while devkit is private
 #
-# git-token, while devkit is private: a fine-grained personal access token,
-# read-only `Contents` on in-liberty420/devkit and nothing else, short expiry.
-# It is used only to fetch dependencies and removed before any of the
-# caller's code (build scripts, tests) runs; tests then run offline.
+# Dependencies are fetched first; tests then run offline.
 #
 # The Postgres job adds `--features <postgres-features>` and sets
 # TEST_DB_BACKEND and TEST_DB_POSTGRES_URL for devkit_db::test_support. Each
@@ -33,10 +28,6 @@ on:
         description: Rust toolchain; empty means rust-toolchain.toml decides.
         type: string
         default: ""
-    secrets:
-      git-token:
-        description: Read-only token for devkit while it is private (see above).
-        required: false
 permissions:
   contents: read
 env:
@@ -83,18 +74,7 @@ jobs:
           rustup toolchain install "$TOOLCHAIN" --profile minimal
           rustup override set "$TOOLCHAIN"
       - name: Fetch dependencies
-        env:
-          GIT_TOKEN: ${{ secrets.git-token }}
-        run: |
-          rewrite='url.https://x-access-token:'"$GIT_TOKEN"'@github.com/in-liberty420/devkit.insteadOf'
-          if [ -n "$GIT_TOKEN" ]; then
-            git config --global "$rewrite" https://github.com/in-liberty420/devkit
-            export CARGO_NET_GIT_FETCH_WITH_CLI=true
-          fi
-          status=0
-          cargo fetch --locked || status=$?
-          git config --global --remove-section "url.https://x-access-token:$GIT_TOKEN@github.com/in-liberty420/devkit" 2>/dev/null || true
-          exit "$status"
+        run: cargo fetch --locked
       - name: Test
         run: |
           read -ra args <<< "$CARGO_ARGS"

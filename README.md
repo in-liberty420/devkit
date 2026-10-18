@@ -26,7 +26,7 @@ switching runbook: [docs/sqlite-to-postgres.md](docs/sqlite-to-postgres.md).
 cargo test -p devkit-db
 ```
 
-On Postgres, see the local commands in the doc above. Tag releases (`v0.1.0`)
+On Postgres, see the local commands in the doc above. Tag releases (`v0.1.1`)
 and depend on tags, never on `main`.
 
 ## License
